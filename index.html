@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#0b0714"/>
+<title>Chapter 2 · Lyric Reader</title>
+<style>
+:root{
+  --bg:#0b0714;--ink:#f3ead8;--dim:#8b7f6a;--gold:#e8c36a;--gold2:#ffe7a8;--saffron:#d9772c;
+  --line:rgba(232,195,106,.16);--st:env(safe-area-inset-top);--sb:env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#0b0714;color:var(--ink);font-family:"Iowan Old Style",Palatino,"Times New Roman",serif}
+body{overflow:hidden;background:radial-gradient(900px 620px at 50% -12%,#3a2160 0%,#0b0714 58%)}
+.app{height:100dvh;display:flex;flex-direction:column}
+header{padding:calc(14px + var(--st)) 18px 12px;border-bottom:1px solid var(--line)}
+.eyebrow{margin:0;font-family:system-ui,sans-serif;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+h1{margin:6px 0 0;font-size:22px;font-weight:600;line-height:1.2}
+.stage{flex:1;overflow:hidden;mask-image:linear-gradient(#0000,#000 10%,#000 82%,#0000)}
+#lyrics{height:100%;overflow-y:auto;padding:18vh 22px 32vh;-webkit-overflow-scrolling:touch}
+.line{margin:0 0 28px;font-size:22px;line-height:1.42;color:rgba(243,234,216,.22);cursor:pointer;transition:color .18s,transform .18s}
+.line.past{color:rgba(243,234,216,.4)}
+.line.now{color:var(--ink);transform:translateY(-1px) scale(1.02);text-shadow:0 0 28px rgba(232,195,106,.22)}
+.line.now .w.on{color:var(--gold2)}
+.dock{border-top:1px solid var(--line);background:rgba(11,7,20,.94);padding:12px 16px calc(18px + var(--sb))}
+.bar{display:flex;align-items:center;gap:10px;font-family:system-ui,sans-serif;font-size:11px;color:var(--dim)}
+#seek{flex:1;accent-color:var(--gold)}
+.row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px}
+.play{width:72px;height:72px;border:0;border-radius:50%;background:linear-gradient(180deg,var(--gold2),var(--saffron));color:#1a0f08;font-size:28px;box-shadow:0 12px 32px rgba(217,119,44,.38)}
+.ghost{border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);border-radius:999px;padding:10px 12px;font:12px system-ui}
+.status{margin:10px 0 0;text-align:center;font:11px system-ui;color:var(--dim)}
+.boot{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:28px;text-align:center;background:radial-gradient(820px 520px at 50% 28%,#45246e,#0b0714 72%)}
+.boot h2{font-weight:500;font-size:30px;margin:10px 0}
+.boot p{color:var(--dim);max-width:26rem;margin:0 auto 16px}
+.boot .play{margin:8px auto}
+.mark{width:58px;height:58px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:conic-gradient(from 200deg,#7a4a12,var(--gold),#fff3c4,var(--saffron),#7a4a12)}
+.warn{color:var(--gold);font:12px system-ui;min-height:1em}
+audio,input[type=file]{display:none}
+</style>
+</head>
+<body>
+<div class="boot" id="boot">
+  <div>
+    <div class="mark">ॐ</div>
+    <p class="eyebrow">Lyric reader · Chapter 2</p>
+    <h2>Mother’s Death and the Amulet</h2>
+    <p>Karaoke over the 1946 text. Play starts the reading. Load Atlas if you have the Grok MP3; otherwise it uses a live male voice so the lyrics still move.</p>
+    <button class="play" id="enter">▶</button>
+    <div style="margin-top:14px">
+      <button class="ghost" id="pickBtn">Load Atlas MP3</button>
+    </div>
+    <p class="warn" id="warn"></p>
+  </div>
+</div>
+<div class="app">
+  <header>
+    <p class="eyebrow" id="modeLabel">Chapter 2 · lyric mode</p>
+    <h1>Mother’s Death and the Amulet</h1>
+  </header>
+  <div class="stage"><div id="lyrics"></div></div>
+  <div class="dock">
+    <div class="bar"><span id="t0">0:00</span><input id="seek" type="range" min="0" max="1000" value="0"><span id="t1">0:00</span></div>
+    <div class="row">
+      <button class="ghost" id="back">−10</button>
+      <button class="play" id="play">▶</button>
+      <button class="ghost" id="fwd">+10</button>
+    </div>
+    <p class="status" id="status">ready</p>
+  </div>
+</div>
+<input id="file" type="file" accept="audio/mpeg,audio/*"/>
+<audio id="audio" playsinline webkit-playsinline></audio>
+<script>
+const BOOK = {"title": "Mother’s Death and the Amulet", "duration": 704.2800000000001, "lines": [{"t": 5.32, "text": "My mother’s greatest desire was the marriage of my elder brother. “Ah, when I behold the face of Ananta’s wife, I shall find heaven on this earth!” I frequently heard Mother express in these words her strong Indian sentiment for family continuity."}, {"t": 20.46, "text": "I was about eleven years old at the time of Ananta’s betrothal. Mother was in Calcutta, joyously supervising the wedding preparations. Father and I alone remained at our home in Bareilly in northern India, whence Father had been transferred after two years at Lahore."}, {"t": 35.66, "text": "I had previously witnessed the splendor of nuptial rites for my two elder sisters, Roma and Uma; but for Ananta, as the eldest son, plans were truly elaborate."}, {"t": 46.08, "text": "Mother was welcoming numerous relatives, daily arriving in Calcutta from distant homes. She lodged them comfortably in a large, newly acquired house at 50 Amherst Street."}, {"t": 56.26, "text": "Everything was in readiness-the banquet delicacies, the gay throne on which Brother was to be carried to the home of the bride-to-be, the rows of colorful lights, the mammoth cardboard elephants and camels, the English, Scottish and Indian orchestras, the professional entertainers, the priests for the ancient rituals."}, {"t": 74.85, "text": "Father and I, in gala spirits, were planning to join the family in time for the ceremony. Shortly before the great day, however, I had an ominous vision."}, {"t": 84.01, "text": "It was in Bareilly on a midnight. As I slept beside Father on the piazza of our bungalow, I was awakened by a peculiar flutter of the mosquito netting over the bed. The flimsy curtains parted and I saw the beloved form of my mother."}, {"t": 97.75, "text": "“Awaken your father!” Her voice was only a whisper. “Take the first available train, at four o’clock this morning. Rush to Calcutta if you would see me!” The wraithlike figure vanished."}, {"t": 109.47, "text": "“Father, Father! Mother is dying!” The terror in my tone aroused him instantly. I sobbed out the fatal tidings."}, {"t": 116.49, "text": "“Never mind that hallucination of yours.” Father gave his characteristic negation to a new situation. “Your mother is in excellent health. If we get any bad news, we shall leave tomorrow.”"}, {"t": 127.31, "text": "“You shall never forgive yourself for not starting now!” Anguish caused me to add bitterly, “Nor shall I ever forgive you!”"}, {"t": 134.49, "text": "The melancholy morning came with explicit words: “Mother dangerously ill; marriage postponed; come at once.”"}, {"t": 142.03, "text": "Father and I left distractedly. One of my uncles met us en route at a transfer point. A train thundered toward us, looming with telescopic increase."}, {"t": 151.35, "text": "From my inner tumult, an abrupt determination arose to hurl myself on the railroad tracks. Already bereft, I felt, of my mother, I could not endure a world suddenly barren to the bone."}, {"t": 162.81, "text": "I loved Mother as my dearest friend on earth. Her solacing black eyes had been my surest refuge in the trifling tragedies of childhood."}, {"t": 171.03, "text": "“Does she yet live?” I stopped for one last question to my uncle."}, {"t": 175.15, "text": "“Of course she is alive!” He was not slow to interpret the desperation in my face. But I scarcely believed him."}, {"t": 181.85, "text": "When we reached our Calcutta home, it was only to confront the stunning mystery of death. I collapsed into an almost lifeless state. Years passed before any reconciliation entered my heart."}, {"t": 193.21, "text": "Storming the very gates of heaven, my cries at last summoned the Divine Mother. Her words brought final healing to my suppurating wounds:"}, {"t": 201.28, "text": "“It is I who have watched over thee, life after life, in the tenderness of many mothers! See in My gaze the two black eyes, the lost beautiful eyes, thou seekest!”"}, {"t": 211.82, "text": "Father and I returned to Bareilly soon after the crematory rites for the well-beloved."}, {"t": 216.52, "text": "Early every morning I made a pathetic memorial—pilgrimage to a large SHEOLI tree which shaded the smooth, green-gold lawn before our bungalow."}, {"t": 224.88, "text": "In poetical moments, I thought that the white SHEOLI flowers were strewing themselves with a willing devotion over the grassy altar."}, {"t": 233.1, "text": "Mingling tears with the dew, I often observed a strange other-worldly light emerging from the dawn. Intense pangs of longing for God assailed me. I felt powerfully drawn to the Himalayas."}, {"t": 246.24, "text": "One of my cousins, fresh from a period of travel in the holy hills, visited us in Bareilly. I listened eagerly to his tales about the high mountain abode of yogis and swamis."}, {"t": 257.24, "text": "“Let us run away to the Himalayas.” My suggestion one day to Dwarka Prasad, the young son of our landlord in Bareilly, fell on unsympathetic ears."}, {"t": 266.68, "text": "He revealed my plan to my elder brother, who had just arrived to see Father. Instead of laughing lightly over this impractical scheme of a small boy, Ananta made it a definite point to ridicule me."}, {"t": 278.7, "text": "“Where is your orange robe? You can’t be a swami without that!”"}, {"t": 282.66, "text": "But I was inexplicably thrilled by his words. They brought a clear picture of myself roaming about India as a monk. Perhaps they awakened memories of a past life; in any case, I began to see with what natural ease I would wear the garb of that anciently-founded monastic order."}, {"t": 299.48, "text": "Chatting one morning with Dwarka, I felt a love for God descending with avalanchic force. My companion was only partly attentive to the ensuing eloquence, but I was wholeheartedly listening to myself."}, {"t": 311.42, "text": "I fled that afternoon toward Naini Tal in the Himalayan foothills. Ananta gave determined chase; I was forced to return sadly to Bareilly. The only pilgrimage permitted me was the customary one at dawn to the SHEOLI tree. My heart wept for the lost Mothers, human and divine."}, {"t": 328.32, "text": "The rent left in the family fabric by Mother’s death was irreparable. Father never remarried during his nearly forty remaining years."}, {"t": 336.06, "text": "Assuming the difficult role of Father-Mother to his little flock, he grew noticeably more tender, more approachable. With calmness and insight, he solved the various family problems."}, {"t": 346.62, "text": "After office hours he retired like a hermit to the cell of his room, practicing KRIYA YOGA in a sweet serenity."}, {"t": 353.4, "text": "Long after Mother’s death, I attempted to engage an English nurse to attend to details that would make my parent’s life more comfortable. But Father shook his head."}, {"t": 362.28, "text": "“Service to me ended with your mother.” His eyes were remote with a lifelong devotion. “I will not accept ministrations from any other woman.”"}, {"t": 370.85, "text": "Fourteen months after Mother’s passing, I learned that she had left me a momentous message. Ananta was present at her deathbed and had recorded her words."}, {"t": 380.19, "text": "Although she had asked that the disclosure be made to me in one year, my brother delayed. He was soon to leave Bareilly for Calcutta, to marry the girl Mother had chosen for him. One evening he summoned me to his side."}, {"t": 393.33, "text": "“Mukunda, I have been reluctant to give you strange tidings.” Ananta’s tone held a note of resignation. “My fear was to inflame your desire to leave home. But in any case you are bristling with divine ardor."}, {"t": 405.63, "text": "When I captured you recently on your way to the Himalayas, I came to a definite resolve."}, {"t": 410.71, "text": "I must not further postpone the fulfillment of my solemn promise.” My brother handed me a small box, and delivered Mother’s message."}, {"t": 418.83, "text": "“Let these words be my final blessing, my beloved son Mukunda!” Mother had said. “The hour is here when I must relate a number of phenomenal events following your birth."}, {"t": 428.79, "text": "I first knew your destined path when you were but a babe in my arms. I carried you then to the home of my guru in Benares."}, {"t": 435.97, "text": "Almost hidden behind a throng of disciples, I could barely see Lahiri Mahasaya as he sat in deep meditation."}, {"t": 442.59, "text": "“While I patted you, I was praying that the great guru take notice and bestow a blessing. As my silent devotional demand grew in intensity, he opened his eyes and beckoned me to approach."}, {"t": 454.49, "text": "The others made a way for me; I bowed at the sacred feet. My master seated you on his lap, placing his hand on your forehead by way of spiritually baptizing you."}, {"t": 464.83, "text": "“‘Little mother, thy son will be a yogi. As a spiritual engine, he will carry many souls to God’s kingdom.’"}, {"t": 471.71, "text": "“My heart leaped with joy to find my secret prayer granted by the omniscient guru. Shortly before your birth, he had told me you would follow his path."}, {"t": 480.53, "text": "“Later, my son, your vision of the Great Light was known to me and your sister Roma, as from the next room we observed you motionless on the bed. Your little face was illuminated; your voice rang with iron resolve as you spoke of going to the Himalayas in quest of the Divine."}, {"t": 496.64, "text": "“In these ways, dear son, I came to know that your road lies far from worldly ambitions. The most singular event in my life brought further confirmation-an event which now impels my deathbed message."}, {"t": 509.1, "text": "“It was an interview with a sage in the Punjab. While our family was living in Lahore, one morning the servant came precipitantly into my room."}, {"t": 517.36, "text": "“‘Mistress, a strange SADHU is here. He insists that he “see the mother of Mukunda.”’"}, {"t": 522.4, "text": "“These simple words struck a profound chord within me; I went at once to greet the visitor. Bowing at his feet, I sensed that before me was a true man of God."}, {"t": 531.82, "text": "“‘Mother,’ he said, ‘the great masters wish you to know that your stay on earth will not be long. Your next illness shall prove to be your last.’ There was a silence, during which I felt no alarm but only a vibration of great peace. Finally he addressed me again:"}, {"t": 546.98, "text": "“‘You are to be the custodian of a certain silver amulet. I will not give it to you today; to demonstrate the truth in my words, the talisman shall materialize in your hands tomorrow as you meditate."}, {"t": 558.26, "text": "On your deathbed, you must instruct your eldest son Ananta to keep the amulet for one year and then to hand it over to your second son. Mukunda will understand the meaning of the talisman from the great ones."}, {"t": 569.78, "text": "He should receive it about the time he is ready to renounce all worldly hopes and start his vital search for God. When he has retained the amulet for some years, and when it has served its purpose, it shall vanish."}, {"t": 581.69, "text": "Even if kept in the most secret spot, it shall return whence it came.’"}, {"t": 586.13, "text": "“I proffered alms to the saint, and bowed before him in great reverence. Not taking the offering, he departed with a blessing."}, {"t": 593.71, "text": "The next evening, as I sat with folded hands in meditation, a silver amulet materialized between my palms, even as the SADHU had promised. It made itself known by a cold, smooth touch."}, {"t": 605.67, "text": "I have jealously guarded it for more than two years, and now leave it in Ananta’s keeping. Do not grieve for me, as I shall have been ushered by my great guru into the arms of the Infinite."}, {"t": 616.59, "text": "Farewell, my child; the Cosmic Mother will protect you.”"}, {"t": 620.23, "text": "A blaze of illumination came over me with possession of the amulet; many dormant memories awakened. The talisman, round and anciently quaint, was covered with Sanskrit characters."}, {"t": 630.97, "text": "I understood that it came from teachers of past lives, who were invisibly guiding my steps. A further significance there was, indeed; but one does not reveal fully the heart of an amulet."}, {"t": 641.83, "text": "How the talisman finally vanished amidst deeply unhappy circumstances of my life; and how its loss was a herald of my gain of a guru, cannot be told in this chapter."}, {"t": 651.65, "text": "But the small boy, thwarted in his attempts to reach the Himalayas, daily traveled far on the wings of his amulet."}, {"t": 658.33, "text": "Sanskrit root meaning of SWAMI is “he who is one with his Self (SWA).” Applied to a member of the Indian order of monks, the title has the formal respect of “the reverend.”"}, {"t": 670.05, "text": "The Indian custom, whereby parents choose the life-partner for their child, has resisted the blunt assaults of time. The percentage is high of happy Indian marriages."}, {"t": 680.31, "text": "An anchorite; one who pursues a SADHANA or path of spiritual discipline."}, {"t": 685.34, "text": "When I discovered by these words that Mother had possessed secret knowledge of a short life, I understood for the first time why she had been insistent on hastening the plans for Ananta’s marriage."}, {"t": 696.4, "text": "Though she died before the wedding, her natural maternal wish had been to witness the rites."}, {"t": 701.56, "text": "A customary gesture of respect to SADHUS."}]};
+const lyrics = document.getElementById("lyrics");
+const audio = document.getElementById("audio");
+const playBtn = document.getElementById("play");
+const seek = document.getElementById("seek");
+const status = document.getElementById("status");
+const warn = document.getElementById("warn");
+const lines = BOOK.lines;
+let spans = [];
+let engine = "live"; // live | atlas
+let idx = 0, speaking = false, raf = 0, t0 = 0, lineDur = 0;
+let atlasReady = false;
+
+const fmt = s => { s = Math.max(0, s|0); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
+const lineLen = t => Math.max(2.4, t.split(/\s+/).length * 0.38);
+
+function render(){
+  lyrics.innerHTML = lines.map((c,i) => {
+    const words = c.text.split(/(\s+)/).map(tok => /^\s+$/.test(tok) ? tok : `<span class="w">${tok}</span>`).join("");
+    return `<p class="line" data-i="${i}">${words}</p>`;
+  }).join("");
+  spans = [...lyrics.querySelectorAll(".line")];
+  spans.forEach(el => el.onclick = () => jump(+el.dataset.i));
+}
+function paint(i, frac){
+  idx = i;
+  spans.forEach((el,n) => {
+    el.classList.toggle("now", n===i);
+    el.classList.toggle("past", n<i);
+    if (n===i){
+      const ws = [...el.querySelectorAll(".w")];
+      const on = Math.floor(frac * ws.length);
+      ws.forEach((w,k) => w.classList.toggle("on", k<=on));
+    } else el.querySelectorAll(".w.on").forEach(w => w.classList.remove("on"));
+  });
+  const cur = spans[i];
+  if (!cur) return;
+  const box = lyrics.getBoundingClientRect();
+  const mid = box.top + box.height * 0.36;
+  lyrics.scrollTop += cur.getBoundingClientRect().top - mid;
+}
+function pickMale(){
+  const vs = speechSynthesis.getVoices();
+  return vs.find(v => /en/.test(v.lang) && /daniel|david|alex|fred|ralph|rishi|aaron|arthur|gordon|male/i.test(v.name))
+      || vs.find(v => /en/.test(v.lang) && !/female|samantha|karen|moira|veena|siri|zira/i.test(v.name))
+      || vs.find(v => /en/.test(v.lang))
+      || vs[0];
+}
+function stopLive(){
+  speaking = false;
+  speechSynthesis.cancel();
+  cancelAnimationFrame(raf);
+}
+function speakFrom(i){
+  engine = "live";
+  stopLive();
+  audio.pause();
+  speaking = true;
+  playBtn.textContent = "❚❚";
+  status.textContent = "live voice · lyrics on";
+  document.getElementById("modeLabel").textContent = "Chapter 2 · live lyric voice";
+  const go = (n) => {
+    if (!speaking || n >= lines.length){ speaking=false; playBtn.textContent="▶"; status.textContent="done"; return; }
+    const text = lines[n].text;
+    lineDur = lineLen(text);
+    t0 = performance.now();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickMale();
+    if (v) u.voice = v;
+    u.rate = 1;
+    u.onend = () => { if (speaking) go(n+1); };
+    u.onerror = () => { if (speaking) go(n+1); };
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+    paint(n, 0);
+    const loop = () => {
+      if (!speaking || idx !== n) return;
+      const frac = Math.min(1, (performance.now()-t0)/(lineDur*1000));
+      paint(n, frac);
+      const done = lines.slice(0,n).reduce((a,c)=>a+lineLen(c.text),0) + frac*lineDur;
+      const total = lines.reduce((a,c)=>a+lineLen(c.text),0);
+      seek.value = Math.round(done/total*1000);
+      document.getElementById("t0").textContent = fmt(done);
+      document.getElementById("t1").textContent = fmt(total);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+  };
+  go(i);
+}
+function atlasAt(t){
+  let i = 0;
+  for (; i<lines.length-1; i++) if (t < lines[i+1].t) break;
+  const start = lines[i].t;
+  const end = i+1<lines.length ? lines[i+1].t : (audio.duration || BOOK.duration);
+  paint(i, Math.max(0, Math.min(1, (t-start)/Math.max(.25, end-start))));
+}
+function jump(i){
+  if (engine === "atlas" && atlasReady){
+    audio.currentTime = lines[i].t + 0.03;
+    audio.play();
+  } else speakFrom(i);
+}
+function useAtlas(){
+  engine = "atlas";
+  stopLive();
+  document.getElementById("modeLabel").textContent = "Chapter 2 · Grok Atlas lyrics";
+  status.textContent = "Atlas loaded · lyrics locked to recording";
+}
+
+const paths = ["yogi-ch02-grok.mp3","yogi-reader/audio/ch02-grok.mp3","audio/ch02-grok.mp3"];
+let pi = 0;
+function tryPath(){
+  audio.src = paths[pi];
+  audio.load();
+}
+audio.oncanplay = () => { atlasReady = true; warn.textContent = "Atlas file found."; };
+audio.onerror = () => {
+  pi += 1;
+  if (pi < paths.length) tryPath();
+  else atlasReady = false;
+};
+tryPath();
+
+audio.ontimeupdate = () => {
+  if (engine !== "atlas") return;
+  if (audio.duration) seek.value = Math.round(audio.currentTime/audio.duration*1000);
+  document.getElementById("t0").textContent = fmt(audio.currentTime);
+  document.getElementById("t1").textContent = fmt(audio.duration||BOOK.duration);
+  atlasAt(audio.currentTime);
+};
+audio.onplay = () => { playBtn.textContent="❚❚"; status.textContent="Atlas · lyrics on"; };
+audio.onpause = () => { if(engine==="atlas"){ playBtn.textContent="▶"; status.textContent="paused"; } };
+audio.onended = () => { playBtn.textContent="▶"; status.textContent="done"; };
+
+playBtn.onclick = () => {
+  if (engine === "atlas" && atlasReady){
+    audio.paused ? audio.play() : audio.pause();
+  } else {
+    if (speaking){ stopLive(); playBtn.textContent="▶"; status.textContent="paused"; }
+    else speakFrom(idx);
+  }
+};
+document.getElementById("back").onclick = () => {
+  if (engine==="atlas" && atlasReady) audio.currentTime = Math.max(0, audio.currentTime-10);
+  else jump(Math.max(0, idx-1));
+};
+document.getElementById("fwd").onclick = () => {
+  if (engine==="atlas" && atlasReady) audio.currentTime = Math.min(audio.duration||0, audio.currentTime+10);
+  else jump(Math.min(lines.length-1, idx+1));
+};
+seek.oninput = () => {
+  if (engine==="atlas" && audio.duration) audio.currentTime = (seek.value/1000)*audio.duration;
+};
+document.getElementById("pickBtn").onclick = () => document.getElementById("file").click();
+document.getElementById("file").onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  audio.src = URL.createObjectURL(f);
+  audio.load();
+  atlasReady = true;
+  useAtlas();
+  warn.textContent = "Atlas attached.";
+};
+document.getElementById("enter").onclick = () => {
+  document.getElementById("boot").style.display = "none";
+  speechSynthesis.getVoices();
+  if (atlasReady){ useAtlas(); audio.play().catch(()=>speakFrom(0)); }
+  else speakFrom(0);
+};
+speechSynthesis.onvoiceschanged = () => {};
+render();
+</script>
+</body>
+</html>
